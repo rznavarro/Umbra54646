@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Shield,
   AlertTriangle,
@@ -65,14 +66,19 @@ import {
   X,
   Minimize2
 } from 'lucide-react';
+import { AgentChat } from './components/AgentChat';
+import { ConnectionStatus } from './components/StatusIndicator';
+import { useWebhooks } from './hooks/useWebhooks';
+import { useAgentMessages } from './hooks/useAgentMessages';
+import { Module, AgentFunction } from './types';
 
 function App() {
   const [activeModule, setActiveModule] = useState(1);
   const [chatMessage, setChatMessage] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [activeAgent, setActiveAgent] = useState<string | null>(null);
-  const [agentMessages, setAgentMessages] = useState<{[key: string]: Array<{type: 'user' | 'agent', message: string, timestamp: string}>}>({});
-  const [agentInput, setAgentInput] = useState('');
+  const [activeAgent, setActiveAgent] = useState<AgentFunction | null>(null);
+  
+  const { connectionStatus, sendMessage } = useWebhooks();
+  const { agentMessages } = useAgentMessages();
 
   const legalStats = {
     activeContracts: 247,
@@ -83,7 +89,7 @@ function App() {
     savedCosts: 45000
   };
 
-  const modules = [
+  const modules: Module[] = [
     {
       id: 1,
       name: 'Agente Legal Interactivo 24/7',
@@ -96,7 +102,7 @@ function App() {
           name: 'Chat Legal 24/7',
           description: 'Preguntas legales específicas con respuestas en segundos',
           icon: MessageSquare, 
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Chat Legal 24/7',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Chat-Legal-24-7',
           howToUse: 'Escribe tu consulta legal específica y obtén respuestas inmediatas de nuestro agente especializado en derecho inmobiliario. Ideal para dudas rápidas sobre contratos, normativas o procedimientos legales.'
         },
         {
@@ -104,7 +110,7 @@ function App() {
           name: 'Revisión Rápida de Documentos',
           description: 'Análisis automático de documentos con resumen legal',
           icon: FileCheck,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revisión Rápida de Documentos',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revision-Rapida-Documentos',
           howToUse: 'Sube tu documento legal (PDF, Word, imagen) y el agente lo analizará completamente, identificando cláusulas importantes, riesgos potenciales y recomendaciones de mejora.'
         },
         {
@@ -112,7 +118,7 @@ function App() {
           name: 'Generación de Informes Legales',
           description: 'Informes legales en PDF descargables por propiedad',
           icon: FileText,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Generación de Informes Legales',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Generacion-Informes-Legales',
           howToUse: 'Proporciona los datos de la propiedad o situación legal y el agente generará un informe profesional completo en PDF, listo para presentar a clientes o autoridades.'
         },
         {
@@ -120,7 +126,7 @@ function App() {
           name: 'Simulador de Problemas Legales',
           description: 'Anticipa problemas legales comunes por caso',
           icon: Lightbulb,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Simulador de Problemas Legales',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Simulador-Problemas-Legales',
           howToUse: 'Describe tu caso o proyecto inmobiliario y el agente simulará posibles escenarios problemáticos, ayudándote a preparar estrategias preventivas y soluciones anticipadas.'
         },
         {
@@ -128,7 +134,7 @@ function App() {
           name: 'Buscador de Normativas Locales',
           description: 'Artículos de ley por comuna, ciudad o país',
           icon: BookOpen,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Buscador de Normativas Locales',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Buscador-Normativas-Locales',
           howToUse: 'Especifica la ubicación geográfica y el tipo de normativa que necesitas. El agente buscará y te proporcionará los artículos de ley aplicables con interpretación práctica.'
         }
       ]
@@ -145,7 +151,7 @@ function App() {
           name: 'Generador de Promesas de Compraventa',
           description: 'Contratos completos con cláusulas adaptadas por operación',
           icon: FileText,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Generador de Promesas de Compraventa',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Generador-Promesas-Compraventa',
           howToUse: 'Ingresa los datos de la operación (comprador, vendedor, propiedad, condiciones) y el agente generará una promesa de compraventa completa con todas las cláusulas legales necesarias.'
         },
         {
@@ -153,7 +159,7 @@ function App() {
           name: 'Detección de Cláusulas Riesgosas',
           description: 'Identifica cláusulas peligrosas o ilegales automáticamente',
           icon: AlertOctagon,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Detección de Cláusulas Riesgosas',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Deteccion-Clausulas-Riesgosas',
           howToUse: 'Sube cualquier contrato y el agente lo escaneará completamente, identificando cláusulas problemáticas, ilegales o que puedan generar conflictos futuros.'
         },
         {
@@ -161,7 +167,7 @@ function App() {
           name: 'Revisión de Arriendos y Cesiones',
           description: 'Análisis de errores y condiciones desfavorables',
           icon: Scan,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revisión de Arriendos y Cesiones',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revision-Arriendos-Cesiones',
           howToUse: 'Proporciona el contrato de arriendo o cesión y el agente lo revisará exhaustivamente, detectando errores, condiciones desfavorables y sugiriendo mejoras.'
         },
         {
@@ -169,7 +175,7 @@ function App() {
           name: 'Corrección Automática de Contratos',
           description: 'Ajustes legales para cumplimiento y reducción de conflictos',
           icon: CheckSquare,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Corrección Automática de Contratos',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Correccion-Automatica-Contratos',
           howToUse: 'Envía tu contrato con problemas identificados y el agente lo corregirá automáticamente, ajustando cláusulas para cumplimiento legal y reducción de riesgos.'
         },
         {
@@ -177,7 +183,7 @@ function App() {
           name: 'Análisis de Firmas Electrónicas',
           description: 'Validación legal de contratos con firma digital',
           icon: ShieldCheck,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Análisis de Firmas Electrónicas',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Analisis-Firmas-Electronicas',
           howToUse: 'Sube contratos con firmas electrónicas y el agente validará su legalidad, autenticidad y cumplimiento con las normativas de firma digital vigentes.'
         }
       ]
@@ -194,7 +200,7 @@ function App() {
           name: 'Verificador de Cumplimiento Legal',
           description: 'Evaluación de proyectos contra normativa vigente',
           icon: Scale,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Verificador de Cumplimiento Legal',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Verificador-Cumplimiento-Legal',
           howToUse: 'Describe tu proyecto inmobiliario con todos sus detalles y el agente lo evaluará contra toda la normativa vigente, identificando áreas de cumplimiento y riesgo.'
         },
         {
@@ -202,7 +208,7 @@ function App() {
           name: 'Alertas Legales Automatizadas',
           description: 'Notificaciones por cambios de ley que afecten proyectos',
           icon: BellRing,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revisión Rápida de Documentos',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Alertas-Legales-Automatizadas',
           howToUse: 'Registra tus proyectos activos y el agente te notificará automáticamente cuando cambien leyes o normativas que puedan afectar tus operaciones inmobiliarias.'
         },
         {
@@ -210,7 +216,7 @@ function App() {
           name: 'Semáforo Legal por Propiedad',
           description: 'Estado Verde, Amarillo o Rojo según riesgo legal',
           icon: Target,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Generación de Informes Legales',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Semaforo-Legal-Propiedad',
           howToUse: 'Ingresa los datos de cualquier propiedad y el agente la evaluará asignando un color: Verde (bajo riesgo), Amarillo (riesgo medio) o Rojo (alto riesgo) con explicación detallada.'
         },
         {
@@ -218,7 +224,7 @@ function App() {
           name: 'Evaluación de Permisos Pendientes',
           description: 'Detección de permisos municipales o sanitarios faltantes',
           icon: CheckCircle,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Evaluación de Permisos Pendientes',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Evaluacion-Permisos-Pendientes',
           howToUse: 'Proporciona información del proyecto o propiedad y el agente identificará todos los permisos municipales, sanitarios o gubernamentales que falten por obtener.'
         },
         {
@@ -226,7 +232,7 @@ function App() {
           name: 'Informe de Riesgo para Inversionistas',
           description: 'PDF de riesgo legal para presentar a inversores',
           icon: TrendingUp,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Informe de Riesgo para Inversionistas',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Informe-Riesgo-Inversionistas',
           howToUse: 'Envía los datos del proyecto de inversión y el agente generará un informe profesional de riesgo legal en PDF, perfecto para presentar a inversionistas potenciales.'
         }
       ]
@@ -243,7 +249,7 @@ function App() {
           name: 'Seguimiento Automático de Promesas',
           description: 'Recordatorios automáticos de vencimiento de contratos',
           icon: Timer,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Seguimiento Automático de Promesas',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Seguimiento-Automatico-Promesas',
           howToUse: 'Registra tus contratos y promesas de compraventa. El agente creará recordatorios automáticos para fechas importantes, vencimientos y renovaciones.'
         },
         {
@@ -251,7 +257,7 @@ function App() {
           name: 'Integración con Sistemas CRM',
           description: 'Generación automática de tareas legales desde CRM',
           icon: Link,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Revisión Rápida de Documentos',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Integracion-Sistemas-CRM',
           howToUse: 'Conecta tu CRM existente y el agente generará automáticamente tareas legales basadas en las actividades comerciales, manteniendo sincronizada la gestión legal.'
         },
         {
@@ -259,7 +265,7 @@ function App() {
           name: 'Agenda Legal Automática',
           description: 'Eventos legales importantes en Google Calendar',
           icon: Calendar,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Agenda Legal Automática',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Agenda-Legal-Automatica',
           howToUse: 'El agente creará automáticamente eventos en tu Google Calendar para fechas legales críticas: vencimientos, audiencias, plazos de respuesta y renovaciones.'
         },
         {
@@ -267,7 +273,7 @@ function App() {
           name: 'Automatización de Notificaciones Legales',
           description: 'Avisos legales automáticos a partes involucradas',
           icon: Mail,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/ Automatización de Notificaciones Legales',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Automatizacion-Notificaciones-Legales',
           howToUse: 'Configura las partes involucradas en tus contratos y el agente enviará automáticamente notificaciones legales, recordatorios y avisos importantes por email.'
         },
         {
@@ -275,15 +281,12 @@ function App() {
           name: 'Recordatorio de Firmas Pendientes',
           description: 'Detección y aviso de firmas faltantes',
           icon: UserCheck,
-          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/ Recordatorio de Firmas Pendientes',
+          webhook: 'https://n8n.srv880021.hstgr.cloud/webhook-test/Recordatorio-Firmas-Pendientes',
           howToUse: 'El agente monitoreará todos tus contratos y detectará automáticamente firmas faltantes, enviando recordatorios personalizados a las partes que deben firmar.'
         }
       ]
     }
   ];
-
-  // Webhook central para Umbra AI
-  const umbraAIWebhook = 'https://n8n.srv880021.hstgr.cloud/webhook-test/umbra-ai-central';
 
   const getModuleColor = (color: string) => {
     const colors = {
@@ -305,112 +308,14 @@ function App() {
     return colors[color as keyof typeof colors] || colors.green;
   };
 
-  const openAgentChat = (functionId: string, functionName: string) => {
-    setActiveAgent(functionId);
-    if (!agentMessages[functionId]) {
-      setAgentMessages(prev => ({
-        ...prev,
-        [functionId]: [
-          {
-            type: 'agent',
-            message: `¡Hola! Soy el agente especializado en "${functionName}". Estoy aquí para ayudarte con esta funcionalidad específica. ¿En qué puedo asistirte?`,
-            timestamp: new Date().toLocaleTimeString()
-          }
-        ]
-      }));
-    }
-  };
-
-  const sendAgentMessage = async (functionId: string, webhook: string) => {
-    if (!agentInput.trim()) return;
-
-    const userMessage = {
-      type: 'user' as const,
-      message: agentInput,
-      timestamp: new Date().toLocaleTimeString()
-    };
-
-    setAgentMessages(prev => ({
-      ...prev,
-      [functionId]: [...(prev[functionId] || []), userMessage]
-    }));
-
-    setAgentInput('');
-    setIsProcessing(true);
-
-    try {
-      const response = await fetch(webhook, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage.message,
-          functionId: functionId,
-          timestamp: new Date().toISOString(),
-          user: 'admin'
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        const agentResponse = {
-          type: 'agent' as const,
-          message: result.response || 'Procesando tu solicitud...',
-          timestamp: new Date().toLocaleTimeString()
-        };
-
-        setAgentMessages(prev => ({
-          ...prev,
-          [functionId]: [...(prev[functionId] || []), agentResponse]
-        }));
-      }
-    } catch (error) {
-      console.error('Error enviando mensaje:', error);
-      const errorResponse = {
-        type: 'agent' as const,
-        message: 'Lo siento, hubo un error procesando tu solicitud. Por favor intenta nuevamente.',
-        timestamp: new Date().toLocaleTimeString()
-      };
-
-      setAgentMessages(prev => ({
-        ...prev,
-        [functionId]: [...(prev[functionId] || []), errorResponse]
-      }));
-    } finally {
-      setIsProcessing(false);
-    }
+  const openAgentChat = (agentFunction: AgentFunction) => {
+    setActiveAgent(agentFunction);
   };
 
   const sendUmbraMessage = async () => {
-    if (!chatMessage.trim()) return;
-
+    // Implementation for central Umbra AI chat
+    console.log('Sending message to Umbra Central:', chatMessage);
     setChatMessage('');
-    setIsProcessing(true);
-
-    try {
-      const response = await fetch(umbraAIWebhook, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: chatMessage,
-          timestamp: new Date().toISOString(),
-          user: 'admin',
-          context: 'general_chat'
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Umbra AI respuesta:', result);
-      }
-    } catch (error) {
-      console.error('Error enviando mensaje a Umbra AI:', error);
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   return (
@@ -425,7 +330,10 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">UMBRA LEGAL</h1>
-                <p className="text-xs text-green-400 font-medium">21 AGENTES IA ESPECIALIZADOS</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-xs text-green-400 font-medium">21 AGENTES IA ESPECIALIZADOS</p>
+                  <ConnectionStatus status={connectionStatus} />
+                </div>
               </div>
             </div>
             
@@ -546,7 +454,7 @@ function App() {
                           </button>
                           <button 
                             className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 bg-gradient-to-r ${getModuleColor(module.color)} text-black text-sm font-medium rounded-lg transition-colors hover:opacity-90`}
-                            onClick={() => openAgentChat(func.id, func.name)}
+                            onClick={() => openAgentChat(func)}
                           >
                             <Bot className="w-4 h-4" />
                             <span>Usar</span>
@@ -641,13 +549,8 @@ function App() {
                 <button 
                   className="p-3 bg-green-600 hover:bg-green-700 text-black rounded-lg transition-colors"
                   onClick={sendUmbraMessage}
-                  disabled={isProcessing}
                 >
-                  {isProcessing ? (
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -655,99 +558,13 @@ function App() {
         </aside>
       </div>
 
-      {/* Agent Chat Modal */}
+      {/* Agent Chat Component */}
       {activeAgent && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-gray-900 to-black border border-gray-700 rounded-xl w-full max-w-2xl h-[600px] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-black" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-100">Agente {activeAgent}</h3>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-green-400">Especializado y Activo</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveAgent(null)}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            <div className="flex-1 p-6 overflow-y-auto">
-              <div className="space-y-4">
-                {agentMessages[activeAgent]?.map((msg, index) => (
-                  <div key={index} className={`flex items-start space-x-3 ${msg.type === 'user' ? 'justify-end' : ''}`}>
-                    {msg.type === 'agent' && (
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-black" />
-                      </div>
-                    )}
-                    <div className={`rounded-lg p-3 max-w-xs ${
-                      msg.type === 'user' 
-                        ? 'bg-green-600 text-black' 
-                        : 'bg-gray-800 text-gray-200'
-                    }`}>
-                      <p className="text-sm">{msg.message}</p>
-                      <span className={`text-xs mt-1 block ${
-                        msg.type === 'user' ? 'text-green-900' : 'text-gray-400'
-                      }`}>{msg.timestamp}</span>
-                    </div>
-                    {msg.type === 'user' && (
-                      <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-gray-300" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-700">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={agentInput}
-                  onChange={(e) => setAgentInput(e.target.value)}
-                  placeholder="Escribe tu consulta específica para este agente..."
-                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-gray-200 placeholder-gray-400 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400/20"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      const currentModule = modules.find(m => m.id === activeModule);
-                      const currentFunction = currentModule?.functions.find(f => f.id === activeAgent);
-                      if (currentFunction) {
-                        sendAgentMessage(activeAgent, currentFunction.webhook);
-                      }
-                    }
-                  }}
-                />
-                <button 
-                  className="p-3 bg-green-600 hover:bg-green-700 text-black rounded-lg transition-colors"
-                  onClick={() => {
-                    const currentModule = modules.find(m => m.id === activeModule);
-                    const currentFunction = currentModule?.functions.find(f => f.id === activeAgent);
-                    if (currentFunction) {
-                      sendAgentMessage(activeAgent, currentFunction.webhook);
-                    }
-                  }}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AgentChat
+          agentFunction={activeAgent}
+          onClose={() => setActiveAgent(null)}
+          moduleColor={modules.find(m => m.functions.some(f => f.id === activeAgent.id))?.color || 'green'}
+        />
       )}
     </div>
   );
