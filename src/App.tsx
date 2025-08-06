@@ -102,7 +102,7 @@ function App() {
           name: 'Chat Legal 24/7',
           description: 'Preguntas legales específicas con respuestas en segundos',
           icon: MessageSquare, 
-          webhook: 'http://localhost:5678/webhook-test/Chat%20Legal%2024/7',
+          webhook: '',
           howToUse: 'Escribe tu consulta legal específica y obtén respuestas inmediatas de nuestro agente especializado en derecho inmobiliario. Ideal para dudas rápidas sobre contratos, normativas o procedimientos legales.'
         },
         {
