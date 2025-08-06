@@ -50,7 +50,7 @@ export const useAgentMessages = () => {
     if (!agentMessages[functionId]) {
       const welcomeMessage: Message = {
         type: 'agent',
-        message: `¡Hola! Soy el agente especializado en "${functionName}". Estoy aquí para ayudarte con esta funcionalidad específica. ¿En qué puedo asistirte?`,
+        message: `¡Hola! Soy el agente de ${functionName}. Puedo ayudarte con consultas legales específicas las 24 horas del día. Escribe tu pregunta legal y te responderé inmediatamente.`,
         timestamp: new Date().toLocaleTimeString(),
         messageId: `welcome_${functionId}_${Date.now()}`,
         status: 'delivered'

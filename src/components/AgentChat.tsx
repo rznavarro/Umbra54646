@@ -44,6 +44,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({
   useEffect(() => {
     responses.forEach(response => {
       if (response.functionId === agentFunction.id) {
+        console.log('Received response for agent:', agentFunction.id, response);
         addAgentResponse(
           agentFunction.id,
           response.messageId,

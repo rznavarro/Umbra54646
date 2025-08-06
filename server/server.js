@@ -28,6 +28,8 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ limit: '10mb' })); // Add support for plain text
+app.use(express.raw({ limit: '10mb' }));  // Add support for raw data
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -39,13 +41,16 @@ app.post('/api/send-message', async (req, res) => {
   try {
     const { message, functionId, messageId, webhook, responseWebhook, context } = req.body;
     
+    // Create response webhook URL with messageId and functionId as query params
+    const responseWebhookUrl = `http://localhost:${port}/api/webhook-responses?messageId=${messageId}&functionId=${functionId}`;
+    
     const payload = {
       message,
       functionId,
       messageId,
       timestamp: new Date().toISOString(),
       user: 'admin',
-      responseWebhook: `http://localhost:${port}/api/webhook-responses`,
+      responseWebhook: responseWebhookUrl,
       context: {
         activeModule: context?.activeModule || 1,
         functionName: context?.functionName || 'Unknown Function',
@@ -55,11 +60,15 @@ app.post('/api/send-message', async (req, res) => {
       },
       webhookConfig: {
         expectsResponse: true,
-        responseFormat: 'json',
-        responseField: 'output',
+        responseFormat: 'text', // Changed to text for plain text responses
+        responseField: 'text',
         statusCode: 200
       }
     };
+
+    console.log('Sending to webhook:', webhook);
+    console.log('Response webhook:', responseWebhookUrl);
+    console.log('Payload:', JSON.stringify(payload, null, 2));
 
     // Store pending message in Redis
     await client.setex(`pending_${messageId}`, 300, JSON.stringify({
@@ -74,13 +83,18 @@ app.post('/api/send-message', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Message-Id': messageId,
+        'X-Function-Id': functionId
       },
       body: JSON.stringify(payload)
     });
 
     if (response.ok) {
+      console.log('Successfully sent to n8n webhook');
       res.json({ success: true, messageId, status: 'sent' });
     } else {
+      const errorText = await response.text();
+      console.error('Webhook failed:', response.status, errorText);
       throw new Error(`Webhook failed with status: ${response.status}`);
     }
   } catch (error) {
@@ -97,18 +111,49 @@ app.post('/api/send-message', async (req, res) => {
 // Endpoint for n8n to send responses back
 app.post('/api/webhook-responses', async (req, res) => {
   try {
-    const { messageId, output, functionId, timestamp, metadata } = req.body;
+    // Handle both JSON and plain text responses
+    let responseData;
+    let output;
+    let messageId;
+    let functionId;
     
-    console.log('Received response from n8n:', { messageId, functionId, output: output?.substring(0, 100) + '...' });
+    // Check if it's JSON or plain text
+    if (typeof req.body === 'string') {
+      // Plain text response - extract messageId from headers or use a default
+      output = req.body;
+      messageId = req.headers['x-message-id'] || req.query.messageId || 'unknown';
+      functionId = req.headers['x-function-id'] || req.query.functionId || '1.1';
+      responseData = {
+        messageId,
+        output,
+        functionId,
+        timestamp: new Date().toISOString(),
+        metadata: { confidence: 0.9, processingTime: 1.0 }
+      };
+    } else {
+      // JSON response
+      const { messageId: msgId, output: msgOutput, functionId: funcId, timestamp, metadata } = req.body;
+      messageId = msgId;
+      output = msgOutput || req.body.response || req.body.text || 'Respuesta procesada correctamente';
+      functionId = funcId;
+      responseData = {
+        messageId,
+        output,
+        functionId,
+        timestamp: timestamp || new Date().toISOString(),
+        metadata: metadata || { confidence: 0.9, processingTime: 1.5 }
+      };
+    }
+    
+    console.log('Received response from n8n:', { 
+      messageId, 
+      functionId, 
+      output: output?.substring(0, 100) + '...',
+      type: typeof req.body === 'string' ? 'plain-text' : 'json'
+    });
     
     // Store response in Redis with expiration
-    await client.setex(`response_${messageId}`, 300, JSON.stringify({
-      messageId,
-      output: output || 'Respuesta procesada correctamente',
-      functionId,
-      timestamp: timestamp || new Date().toISOString(),
-      metadata: metadata || { confidence: 0.9, processingTime: 1.5 }
-    }));
+    await client.setex(`response_${messageId}`, 300, JSON.stringify(responseData));
 
     // Remove from pending
     await client.del(`pending_${messageId}`);

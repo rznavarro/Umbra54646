@@ -34,16 +34,19 @@ export class WebhookService {
     const messageId = `user_${Date.now()}_${uuidv4().substring(0, 8)}`;
     
     try {
+      // Prepare the webhook payload
+      const webhookPayload = {
+        ...payload,
+        messageId,
+        responseWebhook: `${API_BASE_URL}/api/webhook-responses?messageId=${messageId}&functionId=${payload.functionId}`
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/send-message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...payload,
-          messageId,
-          responseWebhook: `${API_BASE_URL}/api/webhook-responses`
-        })
+        body: JSON.stringify(webhookPayload)
       });
 
       const result = await response.json();
