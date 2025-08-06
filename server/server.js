@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => {
 // Endpoint to send message to n8n webhook
 app.post('/api/send-message', async (req, res) => {
   try {
-    const { message, functionId, messageId, webhook, responseWebhook, context } = req.body;
+    const { message, functionId, messageId, webhook, context } = req.body;
     
     // Create response webhook URL with messageId and functionId as query params
     const responseWebhookUrl = `http://localhost:${port}/api/webhook-responses?messageId=${messageId}&functionId=${functionId}`;
@@ -70,32 +70,50 @@ app.post('/api/send-message', async (req, res) => {
     console.log('Response webhook:', responseWebhookUrl);
     console.log('Payload:', JSON.stringify(payload, null, 2));
 
-    // Store pending message in Redis
-    await client.setex(`pending_${messageId}`, 300, JSON.stringify({
-      messageId,
-      functionId,
-      timestamp: payload.timestamp,
-      status: 'sent'
-    }));
+    try {
+      // Store pending message in Redis
+      await client.setex(`pending_${messageId}`, 300, JSON.stringify({
+        messageId,
+        functionId,
+        timestamp: payload.timestamp,
+        status: 'sent'
+      }));
 
-    // Send to n8n webhook
-    const response = await fetch(webhook, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Message-Id': messageId,
-        'X-Function-Id': functionId
-      },
-      body: JSON.stringify(payload)
-    });
+      // Send to n8n webhook with proper error handling
+      const response = await fetch(webhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Message-Id': messageId,
+          'X-Function-Id': functionId,
+          'Accept': 'application/json, text/plain, */*'
+        },
+        body: JSON.stringify(payload),
+        timeout: 30000 // 30 second timeout
+      });
 
-    if (response.ok) {
-      console.log('Successfully sent to n8n webhook');
-      res.json({ success: true, messageId, status: 'sent' });
-    } else {
-      const errorText = await response.text();
-      console.error('Webhook failed:', response.status, errorText);
-      throw new Error(`Webhook failed with status: ${response.status}`);
+      console.log('Webhook response status:', response.status);
+      console.log('Webhook response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.ok) {
+        const responseText = await response.text();
+        console.log('Webhook response body:', responseText);
+        console.log('Successfully sent to n8n webhook');
+        res.json({ success: true, messageId, status: 'sent' });
+      } else {
+        const errorText = await response.text();
+        console.error('Webhook failed:', response.status, response.statusText, errorText);
+        throw new Error(`Webhook failed with status: ${response.status} - ${response.statusText}`);
+      }
+    } catch (fetchError) {
+      console.error('Fetch error details:', fetchError);
+      if (fetchError.code === 'ECONNREFUSED') {
+        throw new Error('Cannot connect to n8n webhook. Make sure n8n is running on localhost:5678');
+      } else if (fetchError.name === 'AbortError') {
+        throw new Error('Webhook request timed out');
+      } else {
+        throw new Error(`Network error: ${fetchError.message}`);
+      }
     }
   } catch (error) {
     console.error('Error sending message:', error);

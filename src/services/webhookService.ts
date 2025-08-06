@@ -34,22 +34,30 @@ export class WebhookService {
     const messageId = `user_${Date.now()}_${uuidv4().substring(0, 8)}`;
     
     try {
+      console.log('Sending message to webhook:', payload.webhook);
+      console.log('Message payload:', payload);
+      
       // Prepare the webhook payload
       const webhookPayload = {
         ...payload,
         messageId,
-        responseWebhook: `${API_BASE_URL}/api/webhook-responses?messageId=${messageId}&functionId=${payload.functionId}`
+        timestamp: new Date().toISOString(),
+        user: 'admin'
       };
 
       const response = await fetch(`${API_BASE_URL}/api/send-message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(webhookPayload)
       });
 
+      console.log('API response status:', response.status);
+      
       const result = await response.json();
+      console.log('API response:', result);
       
       if (!response.ok) {
         throw new Error(result.error || 'Failed to send message');

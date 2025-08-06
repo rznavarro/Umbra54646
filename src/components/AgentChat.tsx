@@ -74,6 +74,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({
       status: 'sending'
     });
 
+    console.log('Sending message to agent:', agentFunction.id, agentFunction.name);
+    console.log('Webhook URL:', agentFunction.webhook);
+    console.log('User message:', userMessage);
+
     try {
       // Send to webhook
       const result = await sendMessage({
@@ -87,9 +91,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({
         }
       });
 
+      console.log('Send message result:', result);
+
       if (result.success) {
         updateMessageStatus(agentFunction.id, messageId, 'sent');
+        console.log('Message sent successfully, status updated to sent');
       } else {
+        console.error('Failed to send message:', result.error);
         updateMessageStatus(agentFunction.id, messageId, 'error');
         // Add error message from agent
         addAgentResponse(
@@ -104,7 +112,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({
       addAgentResponse(
         agentFunction.id,
         messageId,
-        'Lo siento, hubo un error de conexión. Por favor verifica tu conexión e intenta nuevamente.'
+        `Lo siento, hubo un error de conexión: ${error.message}. Por favor verifica que n8n esté ejecutándose en localhost:5678 e intenta nuevamente.`
       );
     }
   };
